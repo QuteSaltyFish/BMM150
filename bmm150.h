@@ -149,6 +149,8 @@ class BMM150 {
   Adafruit_I2CDevice* i2c_dev = NULL;
   Adafruit_SPIDevice* spi_dev = NULL;
   int _cspin;
+  uint8_t transceive(uint8_t* txbuf, uint8_t txlen, uint8_t* rxbuf = NULL,
+                     uint8_t rxlen = 0, uint8_t interdelay = 100);
 };
 
 #endif

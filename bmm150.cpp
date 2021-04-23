@@ -5,8 +5,7 @@
 
 BMM150::BMM150() {}
 
-int8_t BMM150::begin_i2c(uint8_t i2c_addr = BMM150_CHIP_ID_ADDR,
-                         TwoWire* wire = &Wire) {
+int8_t BMM150::begin_i2c(uint8_t i2c_addr, TwoWire* wire) {
   /* Power up the sensor from suspend to sleep mode */
   set_op_mode(BMM150_SLEEP_MODE);
   delay(BMM150_START_UP_TIME);
@@ -342,13 +341,21 @@ void BMM150::set_odr_xyz_rep(struct bmm150_settings settings) {
 void BMM150::set_xy_rep(struct bmm150_settings settings) {
   uint8_t rep_xy;
   rep_xy = settings.xy_rep;
-  i2c_write(BMM150_REP_XY_ADDR, rep_xy);
+  // i2c_write(BMM150_REP_XY_ADDR, rep_xy);
+  uint8_t tx[] = {BMM150_REP_XY_ADDR, rep_xy};
+  if (transceive(tx, sizeof(tx), NULL, 0) != BMM150_OK) {
+    Serial.printf("Set xy rep Error!\n");
+  }
 }
 
 void BMM150::set_z_rep(struct bmm150_settings settings) {
   uint8_t rep_z;
   rep_z = settings.z_rep;
-  i2c_write(BMM150_REP_Z_ADDR, rep_z);
+  uint8_t tx[] = {BMM150_REP_Z_ADDR, rep_z};
+  // i2c_write(BMM150_REP_Z_ADDR, rep_z);
+  if (transceive(tx, sizeof(tx)) != BMM150_OK) {
+    Serial.printf("Set z rep Error!\n");
+  }
 }
 
 void BMM150::soft_reset() {
@@ -356,17 +363,31 @@ void BMM150::soft_reset() {
 
   reg_data = i2c_read(BMM150_POWER_CONTROL_ADDR);
   reg_data = reg_data | BMM150_SET_SOFT_RESET;
-  i2c_write(BMM150_POWER_CONTROL_ADDR, reg_data);
-  delay(BMM150_SOFT_RESET_DELAY);
+  uint8_t tx[] = {BMM150_POWER_CONTROL_ADDR, reg_data};
+  // i2c_write(BMM150_POWER_CONTROL_ADDR, reg_data);
+  // delay(BMM150_SOFT_RESET_DELAY);
+  if (transceive(tx, sizeof(tx), nullptr, 0, BMM150_SOFT_RESET_DELAY) !=
+      BMM150_OK) {
+    Serial.printf("Soft Reset Error!\n");
+  }
 }
 
 void BMM150::set_odr(struct bmm150_settings settings) {
   uint8_t reg_data;
+  uint8_t tx[] = {BMM150_OP_MODE_ADDR};
+  uint8_t rx[1] = {0};
+  // reg_data = i2c_read(BMM150_OP_MODE_ADDR);
+  if (transceive(tx, sizeof(tx), rx, sizeof(rx)) != BMM150_OK) {
+    Serial.printf("Read odr Error!\n");
+  }
 
-  reg_data = i2c_read(BMM150_OP_MODE_ADDR);
   /*Set the ODR value */
-  reg_data = BMM150_SET_BITS(reg_data, BMM150_ODR, settings.data_rate);
-  i2c_write(BMM150_OP_MODE_ADDR, reg_data);
+  reg_data = BMM150_SET_BITS(rx[0], BMM150_ODR, settings.data_rate);
+  uint8_t tx2[] = {BMM150_OP_MODE_ADDR, reg_data};
+  // i2c_write(BMM150_OP_MODE_ADDR, reg_data);
+  if (transceive(tx2, sizeof(tx2)) != BMM150_OK) {
+    Serial.printf("Set odr Error!\n");
+  }
 }
 
 void BMM150::i2c_write(short address, short data) {
@@ -467,9 +488,21 @@ void BMM150::read_trim_registers() {
   uint16_t temp_msb = 0;
 
   /* Trim register value is read */
-  i2c_read(BMM150_DIG_X1, trim_x1y1, 2);
-  i2c_read(BMM150_DIG_Z4_LSB, trim_xyz_data, 4);
-  i2c_read(BMM150_DIG_Z2_LSB, trim_xy1xy2, 10);
+  uint8_t tx0[] = {BMM150_DIG_X1};
+  if (transceive(tx0, sizeof(tx0), trim_x1y1, sizeof(trim_x1y1)) != BMM150_OK) {
+    Serial.printf("Read DIG X1 ERROR!\n");
+  }
+  // i2c_read(BMM150_DIG_X1, trim_x1y1, 2);
+  uint8_t tx1[] = {BMM150_DIG_Z4_LSB};
+  if (transceive(tx1, sizeof(tx1), trim_x1y1, sizeof(trim_x1y1)) != BMM150_OK) {
+    Serial.printf("Read DIG Z4 LSB ERROR!\n");
+  }
+  // i2c_read(BMM150_DIG_Z4_LSB, trim_xyz_data, 4);
+  uint8_t tx2[] = {BMM150_DIG_Z2_LSB};
+  if (transceive(tx2, sizeof(tx2), trim_x1y1, sizeof(trim_x1y1)) != BMM150_OK) {
+    Serial.printf("Read DIG Z2 LSB ERROR!\n");
+  }
+  // i2c_read(BMM150_DIG_Z2_LSB, trim_xy1xy2, 10);
   /*  Trim data which is read is updated
       in the device structure */
   trim_data.dig_x1 = (int8_t)trim_x1y1[0];
@@ -492,19 +525,90 @@ void BMM150::read_trim_registers() {
 
 void BMM150::write_op_mode(uint8_t op_mode) {
   uint8_t reg_data = 0;
-  reg_data = i2c_read(BMM150_OP_MODE_ADDR);
+  uint8_t tx[] = {BMM150_OP_MODE_ADDR};
+  uint8_t rx[1] = {0};
+  // reg_data = i2c_read(BMM150_OP_MODE_ADDR);
+  if (transceive(tx, sizeof(tx), rx, sizeof(rx)) != BMM150_OK) {
+    Serial.printf("Read OP mode Error!\n");
+  }
+
   /* Set the op_mode value in Opmode bits of 0x4C */
-  reg_data = BMM150_SET_BITS(reg_data, BMM150_OP_MODE, op_mode);
-  i2c_write(BMM150_OP_MODE_ADDR, reg_data);
+  reg_data = BMM150_SET_BITS(rx[0], BMM150_OP_MODE, op_mode);
+  uint8_t tx2[] = {BMM150_OP_MODE_ADDR, reg_data};
+  // i2c_write(BMM150_OP_MODE_ADDR, reg_data);
+  if (transceive(tx2, sizeof(tx2)) != BMM150_OK) {
+    Serial.printf("Write OP mode Error!\n");
+  }
 }
 
 void BMM150::set_power_control_bit(uint8_t pwrcntrl_bit) {
   uint8_t reg_data = 0;
   /* Power control register 0x4B is read */
-  reg_data = i2c_read(BMM150_POWER_CONTROL_ADDR);
+  // reg_data = i2c_read(BMM150_POWER_CONTROL_ADDR);
+  uint8_t tx[] = {BMM150_POWER_CONTROL_ADDR};
+  uint8_t rx[1] = {0};
+  if (transceive(tx, sizeof(tx), rx, sizeof(rx)) != BMM150_OK) {
+    Serial.printf("Read power control bit Error!\n");
+  }
   /* Sets the value of power control bit */
-  reg_data = BMM150_SET_BITS_POS_0(reg_data, BMM150_PWR_CNTRL, pwrcntrl_bit);
-  i2c_write(BMM150_POWER_CONTROL_ADDR, reg_data);
+  reg_data = BMM150_SET_BITS_POS_0(rx[0], BMM150_PWR_CNTRL, pwrcntrl_bit);
+  // i2c_write(BMM150_POWER_CONTROL_ADDR, reg_data);
+  uint8_t tx2[] = {BMM150_POWER_CONTROL_ADDR, reg_data};
+  // i2c_write(BMM150_OP_MODE_ADDR, reg_data);
+  if (transceive(tx2, sizeof(tx2)) != BMM150_OK) {
+    Serial.printf("Write power control bit Error!\n");
+  }
+}
+
+/**
+ * Performs a full read/write transaction with the sensor.
+ *
+ * @param txbuf     Pointer the the buffer containing the data to write.
+ * @param txlen     The number of bytes to write.
+ * @param rxbuf     Pointer to an appropriately large buffer where data read
+ *                  back will be written.
+ * @param rxlen     The number of bytes to read back (not including the
+ *                  mandatory status byte that is always returned).
+ *
+ * @return The status byte from the IC.
+ */
+uint8_t BMM150::transceive(uint8_t* txbuf, uint8_t txlen, uint8_t* rxbuf,
+                           uint8_t rxlen, uint8_t interdelay) {
+  // uint8_t status = 0;
+  // uint8_t i;
+  // uint8_t rxbuf2[rxlen + 2];
+
+  if (i2c_dev) {
+    /* Write stage */
+    if (txlen) {
+      if (!i2c_dev->write(txbuf, txlen)) {
+        Serial.printf("I2C Write Error!\n");
+        return BMM150_E_I2C_READ;
+      }
+      delayMicroseconds(interdelay);
+    }
+
+    if (rxlen) { /* Read status byte plus any others */
+      if (!i2c_dev->read(rxbuf, rxlen)) {
+        Serial.printf("I2C Read Error!\n");
+        return BMM150_E_I2C_WRITE;
+      }
+    }
+  }
+
+  if (spi_dev) {
+    if (!spi_dev->write_then_read(txbuf, txlen, rxbuf, rxlen, 0x00)) {
+      Serial.printf("SPI Error!\n");
+      return BMM150_E_SPI;
+    }
+    // status = rxbuf2[0];
+    delayMicroseconds(
+        interdelay);  // Why will there be a interdelay here?
+                      // Update: this delay is somehow useful. Don't touch it.
+  }
+
+  /* Mask out bytes available in the status response. */
+  return BMM150_OK;
 }
 
 // /*!

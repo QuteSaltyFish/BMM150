@@ -12,6 +12,9 @@
 #define BMM150_E_ID_NOT_CONFORM (-1)
 #define BMM150_E_INVALID_CONFIG (-2)
 #define BMM150_E_NOT_INITIALIZED (-3)
+#define BMM150_E_I2C_READ (-4)
+#define BMM150_E_I2C_WRITE (-5)
+#define BMM150_E_SPI (-6)
 // #define BMM150_E_ID_WRONG		    (-3)
 
 /**\name API warning codes */
